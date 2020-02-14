@@ -650,7 +650,7 @@ bool Mid_CheckMPSSEAvailable(FT_DEVICE_LIST_INFO_NODE devList)
 //	printf("\n\tdevList.Type=0x%x\n",devList.Type);
 //	printf("\tdevList.LocId=0x%x\n",devList.LocId);
 
-	byte los = strlen(devList.Description);
+	size_t los = strlen(devList.Description);
 
 	switch(devList.Type)
 	{
