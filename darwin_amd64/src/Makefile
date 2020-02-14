@@ -1,41 +1,67 @@
-TARGET  = libMPSSE
-INSTALL = ../lib
+target  = libMPSSE
+install = ../lib
 
-FTD2XX_DIR = libftd2xx-darwin-amd64-1.4.16
-INCLUDES   = -I$(FTD2XX_DIR) -I.
+ftd2xx_name = ftd2xx
+ftd2xx_root = lib$(ftd2xx_name)-darwin-amd64-1.4.16
 
-#DEFINES = -DINFRA_DEBUG_ENABLE
-DEFINES  = 
-OPTIMIZE = -O3
-DEBUG    = -g
-WARNINGS = -Wall
-#FLAGS    = -fprofile-arcs -ftest-coverage
-FLAGS    =
+includes = $(addprefix -I,$(ftd2xx_root) .)
+libpaths = $(addprefix -L,$(ftd2xx_root))
+libnames = $(addprefix -l,$(ftd2xx_name))
 
-CROSS = 
-CC    = $(CROSS)gcc
-AR    = $(CROSS)ar
-LD    = $(CROSS)ld
+i2c_src  = ftdi_i2c.c
+spi_src  = ftdi_spi.c
+sources  = ftdi_infra.c ftdi_mid.c $(i2c_src) $(spi_src)
+objects  = $(sources:.c=.o)
 
-CFLAGS  = $(DEBUG) $(OPTIMIZE) $(WARNINGS) $(FLAGS) $(DEFINES) $(INCLUDES)
-LDFLAGS = -L$(FTD2XX_DIR) -lftd2xx
+#defines = -DINFRA_debug_ENABLE
+defines  = 
+optimize = -Og
+debug    = -g
+warnings = -Wall
+cflags   =
+ldflags  = -dynamiclib
 
-I2C_SRC = ftdi_i2c.c
-SPI_SRC = ftdi_spi.c
-SOURCES = ftdi_infra.c ftdi_mid.c $(I2C_SRC) $(SPI_SRC)
-OBJECTS = $(SOURCES:.c=.o)
+cross   = 
+objdump = $(cross)objdump
+CC      = $(cross)gcc
+AR      = $(cross)ar
+LD      = $(cross)ld
+CFLAGS  = $(debug) $(optimize) $(warnings) $(defines) $(includes) $(cflags)
+LDFLAGS = $(libpaths) $(libnames) $(ldflags)
 
-all: $(TARGET)
+span := $(shell perl -e 'print "-"x80')
+buildtime := $(shell perl -e 'printf "\tBuild date:\t%s", scalar localtime()')
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -dynamiclib -o $(TARGET).dylib $(OBJECTS)
-	$(AR) -rcs $(TARGET).a $(OBJECTS)
+.PHONY: all install clean
 
-$(OBJECTS): %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+all: $(target)
+	@echo "$(span)"
+	@echo "$(buildtime)"
+	@echo "$(span)"
+	@echo "	$(target).a	- static library"
+	@echo "	$(target).dylib	- dynamic object library"
+	@echo "$(span)"
+	@# generate the library info text for static library
+	$(shell echo "$(span)"       > $(target).a.info)
+	$(shell echo "$(buildtime)" >> $(target).a.info)
+	$(shell echo "$(span)"      >> $(target).a.info)
+	$(shell $(objdump) -macho -dylibs-used -archive-headers -private-header -t -indirect-symbols -g $(target).a >> $(target).a.info)
+	@# generate the library info text for dynamic library
+	$(shell echo "$(span)"       > $(target).dylib.info)
+	$(shell echo "$(buildtime)" >> $(target).dylib.info)
+	$(shell echo "$(span)"      >> $(target).dylib.info)
+	$(shell $(objdump) -macho -dylibs-used -archive-headers -private-header -t -indirect-symbols -g $(target).dylib >> $(target).dylib.info)
 
-install: $(TARGET)
-	cp $(TARGET).a $(TARGET).dylib $(INSTALL)
+install: all
+	cp $(target).a $(target).a.info $(target).dylib $(target).dylib.info $(install)
 
 clean:
-	$(RM) -f *.o *.a *.dylib
+	$(RM) -f *.o *.a *.dylib *.info
+
+$(target): $(objects)
+	$(CC) $(LDFLAGS) -o $(target).dylib $(objects)
+	$(AR) -rcs $(target).a $(objects)
+
+$(objects): %.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
