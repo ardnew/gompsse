@@ -98,14 +98,7 @@ typedef unsigned char	bool;
 	typedef signed long   int32;
 #endif
 
-typedef enum I2C_ClockRate_t{
-	I2C_CLOCK_STANDARD_MODE = 100000,							// 100kb/sec
-	I2C_CLOCK_FAST_MODE = 400000,								// 400kb/sec
-	I2C_CLOCK_FAST_MODE_PLUS = 1000000, 						// 1000kb/sec
-	I2C_CLOCK_HIGH_SPEED_MODE = 3400000 					    // 3.4Mb/sec
-}I2C_CLOCKRATE;
-
-typedef struct ChannelConfig_t
+typedef struct SPI_ChannelConfig_t
 {
 	uint32	ClockRate;
 
@@ -131,7 +124,7 @@ typedef struct ChannelConfig_t
 					/*BIT23 -BIT16: Final direction of the pins		*/
 					/*BIT31 -BIT24: Final values of the pins		*/
 	uint16		reserved;
-}ChannelConfig;
+}SPI_ChannelConfig;
 
 
 /******************************************************************************/
@@ -149,7 +142,7 @@ FTDI_API FT_STATUS SPI_GetNumChannels(uint32 *numChannels);
 FTDI_API FT_STATUS SPI_GetChannelInfo(uint32 index,
 	FT_DEVICE_LIST_INFO_NODE *chanInfo);
 FTDI_API FT_STATUS SPI_OpenChannel(uint32 index, FT_HANDLE *handle);
-FTDI_API FT_STATUS SPI_InitChannel(FT_HANDLE handle, ChannelConfig *config);
+FTDI_API FT_STATUS SPI_InitChannel(FT_HANDLE handle, SPI_ChannelConfig *config);
 FTDI_API FT_STATUS SPI_CloseChannel(FT_HANDLE handle);
 FTDI_API FT_STATUS SPI_Read(FT_HANDLE handle, uint8 *buffer,
 	uint32 sizeToTransfer, uint32 *sizeTransfered, uint32 options);

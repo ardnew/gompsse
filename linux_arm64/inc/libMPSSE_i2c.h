@@ -119,12 +119,12 @@ typedef enum I2C_ClockRate_t{
 
 
 /* Channel configuration information */
-typedef struct ChannelConfig_t
+typedef struct I2C_ChannelConfig_t
 {
 	I2C_CLOCKRATE	ClockRate;
 	uint8			LatencyTimer;
 	uint32			Options;
-}ChannelConfig;
+}I2C_ChannelConfig;
 
 
 /******************************************************************************/
@@ -142,7 +142,7 @@ FTDI_API FT_STATUS I2C_GetNumChannels(uint32 *numChannels);
 FTDI_API FT_STATUS I2C_GetChannelInfo(uint32 index,
 	FT_DEVICE_LIST_INFO_NODE *chanInfo);
 FTDI_API FT_STATUS I2C_OpenChannel(uint32 index, FT_HANDLE *handle);
-FTDI_API FT_STATUS I2C_InitChannel(FT_HANDLE handle, ChannelConfig *config);
+FTDI_API FT_STATUS I2C_InitChannel(FT_HANDLE handle, I2C_ChannelConfig *config);
 FTDI_API FT_STATUS I2C_CloseChannel(FT_HANDLE handle);
 FTDI_API FT_STATUS I2C_DeviceRead(FT_HANDLE handle, uint32 deviceAddress,
 uint32 sizeToTransfer, uint8 *buffer, uint32 *sizeTransfered, uint32 options);
