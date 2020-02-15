@@ -1,18 +1,52 @@
 package gompsse
 
-// unfortunately it isn't possible to use ${GOOS}/${GOARCH} in the #cgo
-// directives, so we have to duplicate for each platform.
-
 // #cgo darwin,amd64 LDFLAGS: -framework CoreFoundation -framework IOKit
-// #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/darwin_amd64/lib
-// #cgo darwin,amd64  CFLAGS: -I${SRCDIR}/darwin_amd64/inc
-// #cgo linux,386    LDFLAGS: -L${SRCDIR}/linux_386/lib
-// #cgo linux,386     CFLAGS: -I${SRCDIR}/linux_386/inc
-// #cgo linux,amd64  LDFLAGS: -L${SRCDIR}/linux_amd64/lib
-// #cgo linux,amd64   CFLAGS: -I${SRCDIR}/linux_amd64/inc
-// #cgo linux,arm64  LDFLAGS: -L${SRCDIR}/linux_arm64/lib
-// #cgo linux,arm64   CFLAGS: -I${SRCDIR}/linux_arm64/inc
+// #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/native/darwin_amd64/lib
+// #cgo darwin,amd64  CFLAGS: -I${SRCDIR}/native/darwin_amd64/inc
+// #cgo linux,386    LDFLAGS: -L${SRCDIR}/native/linux_386/lib
+// #cgo linux,386     CFLAGS: -I${SRCDIR}/native/linux_386/inc
+// #cgo linux,amd64  LDFLAGS: -L${SRCDIR}/native/linux_amd64/lib
+// #cgo linux,amd64   CFLAGS: -I${SRCDIR}/native/linux_amd64/inc
+// #cgo linux,arm64  LDFLAGS: -L${SRCDIR}/native/linux_arm64/lib
+// #cgo linux,arm64   CFLAGS: -I${SRCDIR}/native/linux_arm64/inc
 // #cgo              LDFLAGS: -lMPSSE
-// #include "libMPSSE_spi.h"
-// #include "libMPSSE_i2c.h"
+// #include "ftd2xx.h"
 import "C"
+
+type FTHandle C.FT_HANDLE
+type FTStatus C.FT_STATUS
+
+type FTError int
+
+// Constants related to device status
+const (
+	FTOK                      FTError = C.FT_OK
+	FTInvalidHandle           FTError = C.FT_INVALID_HANDLE
+	FTDeviceNotFound          FTError = C.FT_DEVICE_NOT_FOUND
+	FTDeviceNotOpened         FTError = C.FT_DEVICE_NOT_OPENED
+	FTIOError                 FTError = C.FT_IO_ERROR
+	FTInsufficientResources   FTError = C.FT_INSUFFICIENT_RESOURCES
+	FTInvalidParameter        FTError = C.FT_INVALID_PARAMETER
+	FTInvalidBaudRate         FTError = C.FT_INVALID_BAUD_RATE
+	FTDeviceNotOpenedForErase FTError = C.FT_DEVICE_NOT_OPENED_FOR_ERASE
+	FTDeviceNotOpenedForWrite FTError = C.FT_DEVICE_NOT_OPENED_FOR_WRITE
+	FTFailedToWriteDevice     FTError = C.FT_FAILED_TO_WRITE_DEVICE
+	FTEEPROMReadFailed        FTError = C.FT_EEPROM_READ_FAILED
+	FTEEPROMWriteFailed       FTError = C.FT_EEPROM_WRITE_FAILED
+	FTEEPROMEraseFailed       FTError = C.FT_EEPROM_ERASE_FAILED
+	FTEEPROMNotPresent        FTError = C.FT_EEPROM_NOT_PRESENT
+	FTEEPROMNotProgrammed     FTError = C.FT_EEPROM_NOT_PROGRAMMED
+	FTInvalidArgs             FTError = C.FT_INVALID_ARGS
+	FTNotSupported            FTError = C.FT_NOT_SUPPORTED
+	FTOtherError              FTError = C.FT_OTHER_ERROR
+	FTDeviceListNotReady      FTError = C.FT_DEVICE_LIST_NOT_READY
+)
+
+type MPSSE struct {
+	I2C *I2C
+	SPI *SPI
+}
+
+func NewMPSSE() *MPSSE {
+	return &MPSSE{I2C: nil, SPI: nil}
+}

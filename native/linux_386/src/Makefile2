@@ -1,0 +1,50 @@
+target  = libMPSSE
+install = ../lib
+
+ftd2xx_name = ftd2xx
+ftd2xx_root = lib$(ftd2xx_name)-linux-amd64-1.4.8
+
+includes = $(addprefix -I,$(ftd2xx_root) .)
+libpaths = $(addprefix -L,$(ftd2xx_root))
+libnames = $(addprefix -l,$(ftd2xx_name))
+
+i2c_src  = ftdi_i2c.c
+spi_src  = ftdi_spi.c
+sources  = ftdi_infra.c ftdi_mid.c $(i2c_src) $(spi_src)
+objects  = $(sources:.c=.o)
+
+#defines = -DINFRA_debug_ENABLE
+defines  = 
+optimize = -Og
+debug    = -g
+warnings = -Wall
+cflags   = -fPIC
+ldflags  = -shared
+
+cross   = 
+CC      = $(cross)gcc
+AR      = $(cross)ar
+LD      = $(cross)ld
+CFLAGS  = $(debug) $(optimize) $(warnings) $(defines) $(includes) $(cflags)
+LDFLAGS = $(libpaths) $(libnames) $(ldflags)
+
+all: $(target)
+	@echo "--------------------------------------------------------------------------------"
+	@echo " build complete on $(shell date)"
+	@echo "--------------------------------------------------------------------------------"    
+	@echo     $(install)/$(target).a
+	@echo     $(install)/$(target).so
+	@echo "--------------------------------------------------------------------------------"
+
+$(target): $(objects)
+	$(CC) $(LDFLAGS) -o $(target).so $(objects)
+	$(AR) -rcs $(target).a $(objects)
+
+$(objects): %.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+install: $(target)
+	cp $(target).a $(target).so $(install)
+
+clean:
+	$(RM) -f *.o *.a *.so
