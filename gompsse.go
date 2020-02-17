@@ -42,6 +42,14 @@ const (
 	FTDeviceListNotReady      FTError = C.FT_DEVICE_LIST_NOT_READY
 )
 
+// Constants related to GPIO pin configuration
+const (
+	PIN_LO byte = 0 // pin value clear
+	PIN_HI byte = 1 // pin value set
+	PIN_IN byte = 0 // pin direction input
+	PIN_OT byte = 1 // pin direction output
+)
+
 type MPSSE struct {
 	I2C *I2C
 	SPI *SPI

@@ -1,71 +1,93 @@
 package gompsse
 
-// #include "libMPSSE_i2c.h"
+// #include "libMPSSE_spi.h"
 import "C"
 
-// Constants controlling the various SPI communication options
+// Constants controlling the supported SPI transfer options
 const (
-	// transferOptions-Bit0: If this bit is 0 then it means that the transfer size
-	// provided is in bytes
-	SPITransferOptionsSizeInBytes = 0x00000000
-	// transferOptions-Bit0: If this bit is 1 then it means that the transfer size
-	// provided is in bytes
-	SPITransferOptionsSizeInBits = 0x00000001
-	// transferOptions-Bit1: if BIT1 is 1 then CHIP_SELECT line will be enabled at
-	// start of transfer
-	SPITransferOptionsChipselectEnable = 0x00000002
-	// transferOptions-Bit2: if BIT2 is 1 then CHIP_SELECT line will be disabled
-	// at end of transfer
-	SPITransferOptionsChipselectDisable = 0x00000004
+	SPITransferOptionsSizeInBytes       = 0x00000000 // size is provided in bytes
+	SPITransferOptionsSizeInBits        = 0x00000001 // size is provided in bits
+	SPITransferOptionsChipselectEnable  = 0x00000002 // assert CS before start
+	SPITransferOptionsChipselectDisable = 0x00000004 // deassert CS after end
 )
 
-// Constants defining the supported SPI modes
+const SPIClockRateDefault = 100000 // valid range: 0-30000000 (30 MHz)
+const SPILatencyTimer = value      // 1-255 USB Hi-Speed, 2-255 USB Full-Speed
+
+// Constants defining the supported SPI modes.
+//   NOTE: the libMPSSE engine only supports mode 0 and mode 2 (CPHA==2).
 const (
 	SPIConfigOptionModeMask = 0x00000003
-	SPIConfigOptionMode0    = 0x00000000
-	SPIConfigOptionMode1    = 0x00000001
-	SPIConfigOptionMode2    = 0x00000002
-	SPIConfigOptionMode3    = 0x00000003
+	SPIConfigOptionMode0    = 0x00000000 // capture on RISE, propagate on FALL
+	SPIConfigOptionMode1    = 0x00000001 // capture on FALL, propagate on RISE
+	SPIConfigOptionMode2    = 0x00000002 // capture on FALL, propagate on RISE
+	SPIConfigOptionMode3    = 0x00000003 // capture on RISE, propagate on FALL
+
+	SPIConfigOptionModeDefault = SPIConfigOptionMode0
 )
 
 // Constants defining the supported chip-select pins and options
 const (
-	SPIConfigOptionCSMask  = 0x0000001C // 111 00
-	SPIConfigOptionCSDBUS3 = 0x00000000 // 000 00
-	SPIConfigOptionCSDBUS4 = 0x00000004 // 001 00
-	SPIConfigOptionCSDBUS5 = 0x00000008 // 010 00
-	SPIConfigOptionCSDBUS6 = 0x0000000C // 011 00
-	SPIConfigOptionCSDBUS7 = 0x00000010 // 100 00
+	SPIConfigOptionCSMask  = 0x0000001C
+	SPIConfigOptionCSDBUS3 = 0x00000000 // CS on D3
+	SPIConfigOptionCSDBUS4 = 0x00000004 // CS on D4
+	SPIConfigOptionCSDBUS5 = 0x00000008 // CS on D5
+	SPIConfigOptionCSDBUS6 = 0x0000000C // CS on D6
+	SPIConfigOptionCSDBUS7 = 0x00000010 // CS on D7
 
-	SPIConfigOptionCSActivelow = 0x00000020
+	SPIConfigOptionsCSDefault = SPIConfigOptionCSDBUS3
+
+	SPIConfigOptionCSActivelow = 0x00000020 // drive pin low to assert CS
 )
+
+// Constants related to board pins when MPSSE operating in SPI mode
+const (
+	DBUSNumPins = 8
+	CBUSNumPins = 8
+)
+
+// SPIPinConfig represents the default direction and value for pins associated
+// with the lower byte lines of MPSSE, reserved for serial functions SPI/I²C
+// (or port "D" on FT232H)
+type SPIPinConfig struct {
+	InitDir  byte // direction of lines after SPI channel initialization
+	InitVal  byte // value of lines after SPI channel initialization
+	CloseDir byte // direction of lines after SPI channel is closed
+	CloseVal byte // value of lines after SPI channel is closed
+}
+
+// DefaultSPIPinConfig defines the initial SPIPinConfig value for all pins
+// represented by this type.
+var DefaultSPIPinConfig = [DBUSNumPins]*SPIPinConfig{
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_LO, CloseDir: PIN_OT, CloseVal: PIN_LO}, // D0 SCLK
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_LO, CloseDir: PIN_OT, CloseVal: PIN_LO}, // D1 MOSI
+	&SPIPinConfig{InitDir: PIN_IN, InitVal: PIN_LO, CloseDir: PIN_IN, CloseVal: PIN_LO}, // D2 MISO
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_HI, CloseDir: PIN_OT, CloseVal: PIN_HI}, // D3 CS
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_LO, CloseDir: PIN_OT, CloseVal: PIN_LO}, // D4 GPIO
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_LO, CloseDir: PIN_OT, CloseVal: PIN_LO}, // D5 GPIO
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_LO, CloseDir: PIN_OT, CloseVal: PIN_LO}, // D6 GPIO
+	&SPIPinConfig{InitDir: PIN_OT, InitVal: PIN_LO, CloseDir: PIN_OT, CloseVal: PIN_LO}, // D7 GPIO
+}
 
 // SPIConfig holds all of the configuration settings for an SPI channel.
 type SPIConfig struct {
-	ClockRate uint32
-	Latency   uint8
-	// This member provides a way to enable/disable features specific to the
-	// protocol that are implemented in the chip
-	//  Bits 1-0   (CPOL/CPHA)
-	//    00 - MODE0 - data captured on rising edge, propagated on falling
-	//    01 - MODE1 - data captured on falling edge, propagated on rising
-	//    10 - MODE2 - data captured on falling edge, propagated on rising
-	//    11 - MODE3 - data captured on rising edge, propagated on falling
-	//  Bits 4-2   (chip-select)
-	//    000 - A/B/C/D_DBUS3
-	//    001 - A/B/C/D_DBUS4
-	//    010 - A/B/C/D_DBUS5
-	//    011 - A/B/C/D_DBUS6
-	//    100 - A/B/C/D_DBUS7
-	//  Bit  5     (chip-select is active high if this bit is 0)
-	//  Bits 6-31  (reserved)
-	Options uint32
-	//  Bits  7- 0 (Initial direction of the pins)
-	//  Bits 15- 8 (Initial values of the pins)
-	//  Bits 23-16 (Final direction of the pins)
-	//  Bits 31-24 (Final values of the pins)
-	Pin      uint32
-	Reserved uint16
+	ClockRate uint32 // in Hertz
+	Latency   uint8  // in ms
+	Options   uint32
+	Pin       uint32
+	Reserved  uint16
+}
+
+// SetPin constructs the 32-bit Pin field of the SPIConfig struct from the
+// provided SPIPinConfig slice cfg for each pin (identified by its index in the
+// given slice).
+func (sc *SPIConfig) SetPin(cfg []*SPIPinConfig) {
+
+	sc.Pin = 0
+	for i, c := range cfg {
+		sc.Pin |= (uint32(c.InitDir) << i) | (uint32(c.InitVal) << (8 + i)) |
+			(uint32(c.CloseDir) << (16 + i)) | (uint32(c.CloseVal) << (24 + i))
+	}
 }
 
 type SPI struct {
