@@ -16,8 +16,8 @@ func main() {
 		log.Fatalf("SPIChannels(): %s", err)
 	}
 
-	for i, d := range spi {
-		log.Printf("%d: %+v", i, d)
+	for i, s := range spi {
+		log.Printf("%d: %+v", i, s.DeviceInfo)
 	}
 
 	log.Printf("exiting %d", len(spi))

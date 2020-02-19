@@ -127,7 +127,9 @@ func SPIChannels() ([]*SPIChannelInfo, error) {
 		if stat := Status(C.SPI_GetChannelInfo(i, &info[i])); !stat.OK() {
 			continue
 		}
-		channel[i].DeviceInfo = NewDeviceInfo(&info[i])
+		channel[i] = &SPIChannelInfo{
+			DeviceInfo: NewDeviceInfo(&info[i]),
+		}
 	}
 	return channel, nil
 }

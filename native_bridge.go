@@ -1,15 +1,8 @@
 package gompsse
 
 // #cgo darwin,amd64 LDFLAGS: -framework CoreFoundation -framework IOKit
-// #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/native/darwin_amd64/lib
-// #cgo darwin,amd64  CFLAGS: -I${SRCDIR}/native/darwin_amd64/inc
-// #cgo linux,386    LDFLAGS: -L${SRCDIR}/native/linux_386/lib
-// #cgo linux,386     CFLAGS: -I${SRCDIR}/native/linux_386/inc
-// #cgo linux,amd64  LDFLAGS: -L${SRCDIR}/native/linux_amd64/lib
-// #cgo linux,amd64   CFLAGS: -I${SRCDIR}/native/linux_amd64/inc
-// #cgo linux,arm64  LDFLAGS: -L${SRCDIR}/native/linux_arm64/lib
-// #cgo linux,arm64   CFLAGS: -I${SRCDIR}/native/linux_arm64/inc
-// #cgo              LDFLAGS: -lMPSSE -lftd2xx -ldl
+// #cgo  CFLAGS: -I${SRCDIR}/native/inc
+// #cgo LDFLAGS: -lMPSSE -lftd2xx -ldl
 // #include "ftd2xx.h"
 // #include "stdlib.h"
 import "C"
