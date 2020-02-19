@@ -9,7 +9,7 @@ package gompsse
 // #cgo linux,amd64   CFLAGS: -I${SRCDIR}/native/linux_amd64/inc
 // #cgo linux,arm64  LDFLAGS: -L${SRCDIR}/native/linux_arm64/lib
 // #cgo linux,arm64   CFLAGS: -I${SRCDIR}/native/linux_arm64/inc
-// #cgo              LDFLAGS: -lMPSSE -lftd2xx
+// #cgo              LDFLAGS: -lMPSSE -lftd2xx -ldl
 // #include "ftd2xx.h"
 // #include "stdlib.h"
 import "C"

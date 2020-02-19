@@ -97,7 +97,7 @@ FT_STATUS FT_GetNumChannels(FT_LegacyProtocol Protocol, uint32 *numChans)
 	*numChans = MID_NO_CHANNEL_FOUND;
 	/*Get the number of devices connected to the system(FT_CreateDeviceInfoList)*/
 	status = varFunctionPtrLst.p_FT_GetNumChannel(&tempNumChannels);
-//	printf("\n status=0x%x     tempNumChannels=%d\n",status,tempNumChannels);
+	printf("\n status=0x%x     tempNumChannels=%d\n",status,tempNumChannels);
 	/*Check if the status is Ok */
 	if(status == FT_OK)
 	{
@@ -111,11 +111,13 @@ FT_STATUS FT_GetNumChannels(FT_LegacyProtocol Protocol, uint32 *numChans)
 				*tempNumChannels);
 			if(NULL == pDeviceList)
 			{
+				printf("\n FT_GetNumChannels: insufficient resources\n");
 				return FT_INSUFFICIENT_RESOURCES;
 			}
 			/*get the devices information(FT_GetDeviceInfoList)*/
 			status = varFunctionPtrLst.p_FT_GetDeviceInfoList(pDeviceList,\
 				&tempNumChannels);
+			printf("\n status=0x%x     tempNumChannels=%d\n",status,tempNumChannels);
 			while(devLoop < tempNumChannels)
 			{
 				deviceList = pDeviceList[devLoop];
@@ -125,6 +127,10 @@ FT_STATUS FT_GetNumChannels(FT_LegacyProtocol Protocol, uint32 *numChans)
 				{
 					/*increment *numChans*/
 					*numChans = *numChans + 1;
+				}
+				else
+				{
+					printf("\n MPSSE not available\n");
 				}
 				devLoop++;
 			}
@@ -647,15 +653,15 @@ bool Mid_CheckMPSSEAvailable(FT_DEVICE_LIST_INFO_NODE devList)
 	bool isMPSSEAvailable = MID_NO_MPSSE;
 	FN_ENTER;
 	/*check TYPE field*/
-//	printf("\n\tdevList.Type=0x%x\n",devList.Type);
-//	printf("\tdevList.LocId=0x%x\n",devList.LocId);
+	printf("\n\tdevList.Type=0x%x (FT232H=0x%x)\n",devList.Type, FT_DEVICE_232H);
+	printf("\tdevList.LocId=0x%x\n",devList.LocId);
 
 	size_t los = strlen(devList.Description);
 
 	switch(devList.Type)
 	{
 		case FT_DEVICE_2232C:
-			
+
 			if (devList.Description[los-1] == 0x41)   //Last character = 0x41 = ASCII "A"
 			{
 				isMPSSEAvailable =  MID_MPSSE_AVAILABLE;
