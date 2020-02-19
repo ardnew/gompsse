@@ -9,82 +9,109 @@ package gompsse
 // #cgo linux,amd64   CFLAGS: -I${SRCDIR}/native/linux_amd64/inc
 // #cgo linux,arm64  LDFLAGS: -L${SRCDIR}/native/linux_arm64/lib
 // #cgo linux,arm64   CFLAGS: -I${SRCDIR}/native/linux_arm64/inc
-// #cgo              LDFLAGS: -lMPSSE
+// #cgo              LDFLAGS: -lMPSSE -lftd2xx
 // #include "ftd2xx.h"
+// #include "stdlib.h"
 import "C"
 
-type FTHandle C.FT_HANDLE
-type FTStatus C.FT_STATUS
-
-type FTError int
+type Handle C.FT_HANDLE
+type Status C.FT_STATUS
 
 // Constants related to device status
 const (
-	FTOK                      FTError = C.FT_OK
-	FTInvalidHandle           FTError = C.FT_INVALID_HANDLE
-	FTDeviceNotFound          FTError = C.FT_DEVICE_NOT_FOUND
-	FTDeviceNotOpened         FTError = C.FT_DEVICE_NOT_OPENED
-	FTIOError                 FTError = C.FT_IO_ERROR
-	FTInsufficientResources   FTError = C.FT_INSUFFICIENT_RESOURCES
-	FTInvalidParameter        FTError = C.FT_INVALID_PARAMETER
-	FTInvalidBaudRate         FTError = C.FT_INVALID_BAUD_RATE
-	FTDeviceNotOpenedForErase FTError = C.FT_DEVICE_NOT_OPENED_FOR_ERASE
-	FTDeviceNotOpenedForWrite FTError = C.FT_DEVICE_NOT_OPENED_FOR_WRITE
-	FTFailedToWriteDevice     FTError = C.FT_FAILED_TO_WRITE_DEVICE
-	FTEEPROMReadFailed        FTError = C.FT_EEPROM_READ_FAILED
-	FTEEPROMWriteFailed       FTError = C.FT_EEPROM_WRITE_FAILED
-	FTEEPROMEraseFailed       FTError = C.FT_EEPROM_ERASE_FAILED
-	FTEEPROMNotPresent        FTError = C.FT_EEPROM_NOT_PRESENT
-	FTEEPROMNotProgrammed     FTError = C.FT_EEPROM_NOT_PROGRAMMED
-	FTInvalidArgs             FTError = C.FT_INVALID_ARGS
-	FTNotSupported            FTError = C.FT_NOT_SUPPORTED
-	FTOtherError              FTError = C.FT_OTHER_ERROR
-	FTDeviceListNotReady      FTError = C.FT_DEVICE_LIST_NOT_READY
+	SOK                      Status = C.FT_OK
+	SInvalidHandle           Status = C.FT_INVALID_HANDLE
+	SDeviceNotFound          Status = C.FT_DEVICE_NOT_FOUND
+	SDeviceNotOpened         Status = C.FT_DEVICE_NOT_OPENED
+	SIOError                 Status = C.FT_IO_ERROR
+	SInsufficientResources   Status = C.FT_INSUFFICIENT_RESOURCES
+	SInvalidParameter        Status = C.FT_INVALID_PARAMETER
+	SInvalidBaudRate         Status = C.FT_INVALID_BAUD_RATE
+	SDeviceNotOpenedForErase Status = C.FT_DEVICE_NOT_OPENED_FOR_ERASE
+	SDeviceNotOpenedForWrite Status = C.FT_DEVICE_NOT_OPENED_FOR_WRITE
+	SFailedToWriteDevice     Status = C.FT_FAILED_TO_WRITE_DEVICE
+	SEEPROMReadFailed        Status = C.FT_EEPROM_READ_FAILED
+	SEEPROMWriteFailed       Status = C.FT_EEPROM_WRITE_FAILED
+	SEEPROMEraseFailed       Status = C.FT_EEPROM_ERASE_FAILED
+	SEEPROMNotPresent        Status = C.FT_EEPROM_NOT_PRESENT
+	SEEPROMNotProgrammed     Status = C.FT_EEPROM_NOT_PROGRAMMED
+	SInvalidArgs             Status = C.FT_INVALID_ARGS
+	SNotSupported            Status = C.FT_NOT_SUPPORTED
+	SOtherError              Status = C.FT_OTHER_ERROR
+	SDeviceListNotReady      Status = C.FT_DEVICE_LIST_NOT_READY
 )
 
-func (e FTError) Error() string {
-	switch e {
-	case FTOK:
+func (s Status) OK() bool {
+	return SOK == s
+}
+
+func (s Status) Error() string {
+	switch s {
+	case SOK:
 		return "OK"
-	case FTInvalidHandle:
+	case SInvalidHandle:
 		return "invalid handle"
-	case FTDeviceNotFound:
+	case SDeviceNotFound:
 		return "device not found"
-	case FTDeviceNotOpened:
+	case SDeviceNotOpened:
 		return "device not opened"
-	case FTIOError:
+	case SIOError:
 		return "IO error"
-	case FTInsufficientResources:
+	case SInsufficientResources:
 		return "insufficient resources"
-	case FTInvalidParameter:
+	case SInvalidParameter:
 		return "invalid parameter"
-	case FTInvalidBaudRate:
+	case SInvalidBaudRate:
 		return "invalid baud rate"
-	case FTDeviceNotOpenedForErase:
+	case SDeviceNotOpenedForErase:
 		return "device not opened for erase"
-	case FTDeviceNotOpenedForWrite:
+	case SDeviceNotOpenedForWrite:
 		return "device not opened for write"
-	case FTFailedToWriteDevice:
+	case SFailedToWriteDevice:
 		return "failed to write device"
-	case FTEEPROMReadFailed:
+	case SEEPROMReadFailed:
 		return "EEPROM read failed"
-	case FTEEPROMWriteFailed:
+	case SEEPROMWriteFailed:
 		return "EEPROM write failed"
-	case FTEEPROMEraseFailed:
+	case SEEPROMEraseFailed:
 		return "EEPROM erase failed"
-	case FTEEPROMNotPresent:
+	case SEEPROMNotPresent:
 		return "EEPROM not present"
-	case FTEEPROMNotProgrammed:
+	case SEEPROMNotProgrammed:
 		return "EEPROM not programmed"
-	case FTInvalidArgs:
+	case SInvalidArgs:
 		return "invalid args"
-	case FTNotSupported:
+	case SNotSupported:
 		return "not supported"
-	case FTOtherError:
+	case SOtherError:
 		return "other error"
-	case FTDeviceListNotReady:
+	case SDeviceListNotReady:
 		return "device list not ready"
 	default:
 		return "unknown error"
+	}
+}
+
+type DeviceInfo struct {
+	IsOpen      bool
+	IsHiSpeed   bool
+	Type        uint32
+	ID          uint32
+	LocID       uint32
+	SerialNo    string
+	Description string
+	Handle      Handle
+}
+
+func NewDeviceInfo(info *C.FT_DEVICE_LIST_INFO_NODE) *DeviceInfo {
+	return &DeviceInfo{
+		IsOpen:      1 == (info.Flags & 0x01),
+		IsHiSpeed:   2 == (info.Flags & 0x02),
+		Type:        uint32(info.Type),
+		ID:          uint32(info.ID),
+		LocID:       uint32(info.LocId),
+		SerialNo:    C.GoString(&info.SerialNumber[0]),
+		Description: C.GoString(&info.Description[0]),
+		Handle:      Handle(info.ftHandle),
 	}
 }

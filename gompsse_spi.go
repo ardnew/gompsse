@@ -3,10 +3,14 @@ package gompsse
 // #include "libMPSSE_spi.h"
 import "C"
 
-// spiPinConfig represents the default direction and value for pins associated
+import (
+	"fmt"
+)
+
+// spiDPinConfig represents the default direction and value for pins associated
 // with the lower byte lines of MPSSE, reserved for serial functions SPI/I²C
-// (or port "D" on FT232H)
-type spiPinConfig struct {
+// (or port "D" on FT232H), but has a few GPIO pins as well.
+type spiDPinConfig struct {
 	initDir  byte // direction of lines after SPI channel initialization
 	initVal  byte // value of lines after SPI channel initialization
 	closeDir byte // direction of lines after SPI channel is closed
@@ -19,6 +23,12 @@ const (
 	spiXferBits  = 0x00000001 // size is provided in bits
 	spiCSEnable  = 0x00000002 // assert CS before start
 	spiCSDisable = 0x00000004 // deassert CS after end
+)
+
+// Constants related to board pins when MPSSE operating in SPI mode
+const (
+	spiClockRateDefault = 12000000 // valid range: 0-30000000 (30 MHz)
+	spiLatencyDefault   = 16       // 1-255 USB Hi-Speed, 2-255 USB Full-Speed
 )
 
 // Constants defining the available options in the SPI configuration struct.
@@ -44,13 +54,14 @@ const (
 	spiCSDefault = spiCSD3
 
 	// Other options
-	spiCSActiveLow  = 0x00000020 // drive pin low to assert CS
-	spiCSActiveHigh = 0x00000000 // drive pin high to assert CS
+	spiCSActiveLow     = 0x00000020 // drive pin low to assert CS
+	spiCSActiveHigh    = 0x00000000 // drive pin high to assert CS
+	spiCSActiveDefault = spiCSActiveLow
 )
 
-// SPICSPin translates a DPin value to its corresponding chip-select mask for
+// spiCSPin translates a DPin value to its corresponding chip-select mask for
 // the SPI configuration struct option.
-var SPICSPin = map[DPin]uint32{
+var spiCSPin = map[DPin]uint32{
 	D0: spiCSInvalid,
 	D1: spiCSInvalid,
 	D2: spiCSInvalid,
@@ -61,23 +72,17 @@ var SPICSPin = map[DPin]uint32{
 	D7: spiCSD7,
 }
 
-// Constants related to board pins when MPSSE operating in SPI mode
-const (
-	spiClockRateDefault = 100000 // valid range: 0-30000000 (30 MHz)
-	spiLatencyDefault   = 16     // 1-255 USB Hi-Speed, 2-255 USB Full-Speed
-)
-
-// defaultspiPinConfig defines the initial spiPinConfig value for all pins
+// spiDPinConfigDefault defines the initial spiDPinConfig value for all pins
 // represented by this type.
-var spiPinConfigDefault = [NumDPins]*spiPinConfig{
-	&spiPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D0 SCLK
-	&spiPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D1 MOSI
-	&spiPinConfig{initDir: PinIN, initVal: PinLO, closeDir: PinIN, closeVal: PinLO}, // D2 MISO
-	&spiPinConfig{initDir: PinOT, initVal: PinHI, closeDir: PinOT, closeVal: PinHI}, // D3 CS
-	&spiPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D4 GPIO
-	&spiPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D5 GPIO
-	&spiPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D6 GPIO
-	&spiPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D7 GPIO
+var spiDPinConfigDefault = [NumDPins]*spiDPinConfig{
+	&spiDPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D0 SCLK
+	&spiDPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D1 MOSI
+	&spiDPinConfig{initDir: PinIN, initVal: PinLO, closeDir: PinIN, closeVal: PinLO}, // D2 MISO
+	&spiDPinConfig{initDir: PinOT, initVal: PinHI, closeDir: PinOT, closeVal: PinHI}, // D3 CS
+	&spiDPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D4 GPIO
+	&spiDPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D5 GPIO
+	&spiDPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D6 GPIO
+	&spiDPinConfig{initDir: PinOT, initVal: PinLO, closeDir: PinOT, closeVal: PinLO}, // D7 GPIO
 }
 
 // spiConfig holds all of the configuration settings for an SPI channel.
@@ -85,34 +90,66 @@ type spiConfig struct {
 	clockRate uint32 // in Hertz
 	latency   uint8  // in ms
 	options   uint32
-	pin       uint32
+	dpin      uint32
 	reserved  uint16
 }
 
-// SetPin constructs the 32-bit pin field of the spiConfig struct from the
-// provided spiPinConfig slice cfg for each pin (identified by its index in the
+// dpinConfig constructs the 32-bit pin field of the spiConfig struct from the
+// provided spiDPinConfig slice cfg for each pin (identified by its index in the
 // given slice).
-func (sc *spiConfig) setPin(cfg [NumDPins]*spiPinConfig) {
-
-	sc.pin = 0
+func dpinConfig(cfg [NumDPins]*spiDPinConfig) uint32 {
+	var dpin uint32
 	for i, c := range cfg {
-		sc.pin |= (uint32(c.initDir) << i) | (uint32(c.initVal) << (8 + i)) |
+		dpin |= (uint32(c.initDir) << i) | (uint32(c.initVal) << (8 + i)) |
 			(uint32(c.closeDir) << (16 + i)) | (uint32(c.closeVal) << (24 + i))
 	}
+	return dpin
 }
 
 type SPI struct {
 	config *spiConfig
 }
 
+type SPIChannelInfo struct {
+	*DeviceInfo
+}
+
+func SPIChannels() ([]*SPIChannelInfo, error) {
+	var numChannels C.uint32
+	if stat := Status(C.SPI_GetNumChannels(&numChannels)); !stat.OK() {
+		return nil, stat
+	}
+
+	info := make([]C.FT_DEVICE_LIST_INFO_NODE, int(numChannels))
+	channel := make([]*SPIChannelInfo, int(numChannels))
+
+	for i := C.uint32(0); i < numChannels; i++ {
+		if stat := Status(C.SPI_GetChannelInfo(i, &info[i])); !stat.OK() {
+			continue
+		}
+		channel[i].DeviceInfo = NewDeviceInfo(&info[i])
+	}
+	return channel, nil
+}
+
 func NewSPI(cs DPin) (*SPI, error) {
+
+	var (
+		spiCS uint32
+		ok    bool
+	)
+
+	if spiCS, ok = spiCSPin[cs]; !ok {
+		return nil, fmt.Errorf("invalid CS pin: %d", cs)
+	}
 
 	config := &spiConfig{
 		clockRate: spiClockRateDefault,
 		latency:   spiLatencyDefault,
-		options:   spiCSActiveLow | spiCSDefault | spiModeDefault,
+		options:   spiCSActiveDefault | spiCS | spiModeDefault,
+		dpin:      dpinConfig(spiDPinConfigDefault),
+		reserved:  0,
 	}
-	config.setPin(spiPinConfigDefault)
 
 	return &SPI{config: config}, nil
 }
