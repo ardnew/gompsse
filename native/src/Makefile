@@ -1,25 +1,66 @@
-target  := libMPSSE
-install := /usr/local/lib
+################################################################################
+#
+#
+#
+################################################################################
 
-os   := linux
-#os   := darwin
-arch := amd64
-#arch := 386
-#arch := arm64
 
+# -------------------------------------------------------- HOST CONFIGURATION --
+
+# host OS and arch where you will be running your Go executables. the actual
+# values used here are inherited from $GOOS and $GOARCH, and are what I used for
+# directory names for any software that is system-specific (incl. proprietary)
+os       = linux
+#os       = darwin
+arch     = amd64
+#arch     = 386
+#arch     = arm64
+
+# where the resulting required libs will be installed. this should be somewhere
+# fairly global so that your Go executables won't have any trouble locating them
+install  = /usr/local/lib
+
+
+# ------------------------------------------------------ SOURCE CONFIGURATION --
+
+# name  of the shared library we are actually building
+target = libMPSSE
+
+# path to ftd2xx proprietary library and headers, constructed with system-
+# specific path names and version numbers.
 ftd2xx_name        = ftd2xx
 linux-ftd2xx_vers  = 1.4.8
 darwin-ftd2xx_vers = 1.4.16
 ftd2xx_root        = $(os)-$(arch)/lib$(ftd2xx_name)-$(os)-$(arch)-$($(os)-ftd2xx_vers)
 
+
+#       //-----------================####=================-----------\\        #
+#      |||                                                           |||       #
+#      ||| You should know what you're doing if you intend to make   |||       #
+#      ||| changes to any of the following sections. Otherwise, the  |||       #
+#      ||| basic configuration should suffice and you should now try |||       #
+#      ||| to build the library with `make clean && make install`.   |||       #
+#      |||                                                           |||       #
+#       \\-----------================####=================-----------//        #
+
+
+# ------------------------------------------------------- BUILD CONFIGURATION --
+
+# add include and library search paths for the ftd2xx driver, and the include
+# path to the libMPSSE API header files
 includes = $(addprefix -I,$(ftd2xx_root) . ../inc)
 libpaths = $(addprefix -L,$(ftd2xx_root))
 libnames = $(addprefix -l,$(ftd2xx_name))
 
+# all sources files that constitute libMPSSE
 i2c_src  = ftdi_i2c.c
 spi_src  = ftdi_spi.c
 sources  = ftdi_infra.c ftdi_mid.c $(i2c_src) $(spi_src)
-objects  = $(sources:.c=.o)
+objects  = $(sources:.c=.o) # expected object files
+
+# all files required to use libMPSSE from a Go application are considered
+# "outputs" from this Makefile. running a successful `make install` copies these
+# files to the "fairly global" directory $(install) defined above.
 linux-outputs  = $(target).a $(target).so $(ftd2xx_root)/lib$(ftd2xx_name).a $(ftd2xx_root)/lib$(ftd2xx_name).so.$($(os)-ftd2xx_vers)
 darwin-outputs = $(target).a $(target).dylib $(ftd2xx_root)/lib$(ftd2xx_name).a $(ftd2xx_root)/lib$(ftd2xx_name).$($(os)-ftd2xx_vers).dylib
 
@@ -43,6 +84,9 @@ LDFLAGS = $($(os)-ldflags) $(libpaths) $(libnames)
 
 span      := $(shell perl -e 'print "-"x80')
 buildtime := $(shell perl -e 'printf "\tBuild date:\t%s", scalar localtime()')
+
+
+# -------------------------------------------------------------- MAKE RECIPES --
 
 .PHONY: all linux-all darwin-all install linux-install darwin-install clean
 
