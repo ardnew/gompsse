@@ -15,21 +15,17 @@
 ## Drivers
 All communication with MPSSE-capable devices is performed with FTDI's open-source driver [`LibMPSSE`](https://www.ftdichip.com/Support/SoftwareExamples/MPSSE.htm). This software however depends on FTDI's proprietary driver [`FTD2XX`](https://www.ftdichip.com/Drivers/D2XX.htm) (based on [`libusb`](https://github.com/libusb/libusb)), which is only available for certain platforms.
 
-Contained in this project are all of the necessary files required to build `LibMPSSE` for each supported OS as well as pre-compiled libraries for your _all-important_ ~~laziness~~convenience (or if you can't build for whatever reason). A simple GNU Makefile has also been created for each (see: [Building LibMPSSE](#building-libmpsse-optional)). Changes to both `FTD2XX` and `LibMPSSE` were made for general compatibility reasons and should not affect the API.
+Contained in this project are all of the necessary files required to build `LibMPSSE` for each supported OS as well as pre-compiled libraries for your all-important ~~laziness~~convenience (also so that it _Just Works_ with `go get`). A simple GNU Makefile has also been created for each (see: [Building LibMPSSE](#building-libmpsse-optional)). Changes to both `FTD2XX` and `LibMPSSE` were made for general compatibility reasons and should not affect the API.
 
-Under [`native`](native), you will find a single directory with the following structure for each supported OS containing all of its required libraries and interfaces:
+Under [`native`](native), you will find the headers needed by `gompsse` to communicate with the C libraries, the source code for `LibMPSSE`, and the pre-compiled `FTD2XX` library for each supported platform:
 
 ```sh
 └── native/
     ├── inc/  # LibMPSSE C APIs and FTD2XX C source code headers needed by cgo
     └── src/  # LibMPSSE C source code, GNU Makefile
         └── `${GOOS}_${GOARCH}`/ # proprietary FTD2XX library
-
-└──
-
-lib  # LibMPSSE library (both static (.a) and dynamic (.so/.dylib))
-
 ```
+
 #### Building LibMPSSE (optional)
 TBD
 

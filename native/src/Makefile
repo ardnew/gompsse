@@ -10,8 +10,8 @@
 # host OS and arch where you will be running your Go executables. the actual
 # values used here are inherited from $GOOS and $GOARCH, and are what I used for
 # directory names for any software that is system-specific (incl. proprietary)
-os       = linux
-#os       = darwin
+#os       = linux
+os       = darwin
 arch     = amd64
 #arch     = 386
 #arch     = arm64
@@ -28,10 +28,10 @@ target = libMPSSE
 
 # path to ftd2xx proprietary library and headers, constructed with system-
 # specific path names and version numbers.
-ftd2xx_name        = ftd2xx
-linux-ftd2xx_vers  = 1.4.8
-darwin-ftd2xx_vers = 1.4.16
-ftd2xx_root        = $(os)-$(arch)/lib$(ftd2xx_name)-$(os)-$(arch)-$($(os)-ftd2xx_vers)
+ftd2xx-name        = ftd2xx
+linux-ftd2xx-vers  = 1.4.8
+darwin-ftd2xx-vers = 1.4.16
+ftd2xx-root        = $(os)-$(arch)/lib$(ftd2xx-name)-$(os)-$(arch)-$($(os)-ftd2xx-vers)
 
 
 #       //-----------================####=================-----------\\        #
@@ -39,7 +39,7 @@ ftd2xx_root        = $(os)-$(arch)/lib$(ftd2xx_name)-$(os)-$(arch)-$($(os)-ftd2x
 #      ||| You should know what you're doing if you intend to make   |||       #
 #      ||| changes to any of the following sections. Otherwise, the  |||       #
 #      ||| basic configuration should suffice and you should now try |||       #
-#      ||| to build the library with `make clean && make install`.   |||       #
+#      ||| to build the library with `make && make install`.         |||       #
 #      |||                                                           |||       #
 #       \\-----------================####=================-----------//        #
 
@@ -48,21 +48,36 @@ ftd2xx_root        = $(os)-$(arch)/lib$(ftd2xx_name)-$(os)-$(arch)-$($(os)-ftd2x
 
 # add include and library search paths for the ftd2xx driver, and the include
 # path to the libMPSSE API header files
-includes = $(addprefix -I,$(ftd2xx_root) . ../inc)
-libpaths = $(addprefix -L,$(ftd2xx_root))
-libnames = $(addprefix -l,$(ftd2xx_name))
+includes = $(addprefix -I,$(ftd2xx-root) . ../inc)
+libpaths = $(addprefix -L,$(ftd2xx-root))
+libnames = $(addprefix -l,$(ftd2xx-name))
 
 # all sources files that constitute libMPSSE
-i2c_src  = ftdi_i2c.c
-spi_src  = ftdi_spi.c
-sources  = ftdi_infra.c ftdi_mid.c $(i2c_src) $(spi_src)
-objects  = $(sources:.c=.o) # expected object files
+i2c-src = ftdi_i2c.c
+spi-src = ftdi_spi.c
+sources = ftdi_infra.c ftdi_mid.c $(i2c-src) $(spi-src)
+objpath = $(os)-$(arch)/obj
+objects = $(patsubst %,$(objpath)/%,$(sources:.c=.o)) # expected object files
+
+# file naming convention for shared/dynamic libraries
+linux-dynext      = so
+darwin-dynext     = dylib
+linux-ftd2xx-dynext  = $($(os)-dynext).$($(os)-ftd2xx-vers)
+darwin-ftd2xx-dynext = $($(os)-ftd2xx-vers).$($(os)-dynext) # macOS reverses the extensions
+
+# command used to generate metadata info about both compiled libraries (static
+# and dynamic)
+linux-objdump  = $(objdump) -fpt
+darwin-objdump = $(objdump) -macho -dylibs-used -archive-headers -private-header -t -indirect-symbols -g
 
 # all files required to use libMPSSE from a Go application are considered
 # "outputs" from this Makefile. running a successful `make install` copies these
 # files to the "fairly global" directory $(install) defined above.
-linux-outputs  = $(target).a $(target).so $(ftd2xx_root)/lib$(ftd2xx_name).a $(ftd2xx_root)/lib$(ftd2xx_name).so.$($(os)-ftd2xx_vers)
-darwin-outputs = $(target).a $(target).dylib $(ftd2xx_root)/lib$(ftd2xx_name).a $(ftd2xx_root)/lib$(ftd2xx_name).$($(os)-ftd2xx_vers).dylib
+outputs  = $(os)-$(arch)/$(target).a \
+           $(os)-$(arch)/$(target).$($(os)-dynext) \
+           $(ftd2xx-root)/lib$(ftd2xx-name).a \
+           $(ftd2xx-root)/lib$(ftd2xx-name).$($(os)-ftd2xx-dynext) \
+           $(ftd2xx-root)/lib$(ftd2xx-name).$($(os)-dynext)
 
 #defines = -DINFRA_debug_ENABLE
 defines  =
@@ -82,54 +97,63 @@ LD      = $(cross)ld
 CFLAGS  = $(debug) $(optimize) $(warnings) $(defines) $(includes) $($(os)-cflags)
 LDFLAGS = $($(os)-ldflags) $(libpaths) $(libnames)
 
-span      := $(shell perl -e 'print "-"x80')
-buildtime := $(shell perl -e 'printf "\tBuild date:\t%s", scalar localtime()')
+buildtime := $(shell date)
 
 
 # -------------------------------------------------------------- MAKE RECIPES --
 
-.PHONY: all linux-all darwin-all install linux-install darwin-install clean
+.PHONY: default notarget available showconfig install reinstall build clean
 
-all: $(os)-all
+default: notarget available showconfig
 
-linux-all: $(target)
-	@printf "%s\n%s\n%s\n" "$(span)" "$(buildtime)" "$(span)" | tee "$(target).a.info" "$(target).so.info"
-	$(objdump) -fpt $(target).a >> $(target).a.info
-	$(objdump) -fpt $(target).so >> $(target).so.info
+notarget:
+	@printf "no target specified. usage:\n"
+	@printf "	$$ make <target>\n\n"
 
-darwin-all: $(target)
-	@printf "%s\n%s\n%s\n" "$(span)" "$(buildtime)" "$(span)" | tee "$(target).a.info" "$(target).dylib.info"
-	$(objdump) -macho -dylibs-used -archive-headers -private-header -t -indirect-symbols -g $(target).a >> $(target).a.info
-	$(objdump) -macho -dylibs-used -archive-headers -private-header -t -indirect-symbols -g $(target).dylib >> $(target).dylib.info
+available:
+	@printf "available make targets:\n"
+	@printf "	showconfig	- prints the current build/install configuration\n"
+	@printf "	install		- installs both %s and %s to system library path\n" $(target) $(ftd2xx-name)
+	@printf "	reinstall		- compiles and installs both %s and %s to system library path\n" $(target) $(ftd2xx-name)
+	@printf "	build		- compiles both a static and shared/dynamic library %s\n" $(target)
+	@printf "	clean		- removes all compiled objects (.o, .a, .so, .dylib) and metadata\n\n"
 
-install: $(os)-install
-	@echo "$(span)"
-	@echo "libraries installed to: $(install)"
-	@printf "\t%s\n" $($(os)-outputs)
-	@echo "$(span)"
+showconfig:
+	@printf "current build configuration:\n"
+	@printf "	OS		= %s\n" $(os)
+	@printf "	arch		= %s\n" $(arch)
+	@printf "	install path	= %s\n" $(install)
+	@printf "	build output	= %s\n" ./$(os)-$(arch)/
+	@printf "	CC		= %s\n" "$(CC)"
+	@printf "	CFLAGS		= %s\n" "$(CFLAGS)"
+	@printf "	LDFLAGS		= %s\n" "$(LDFLAGS)"
 
-linux-install: $($(os)-outputs)
-	@ln -sf lib$(ftd2xx_name).so.$($(os)-ftd2xx_vers) $(install)/lib$(ftd2xx_name).so
+install: $(install)
+	@test -d $^ || mkdir -p $^
+	cp $(outputs) $^
+	@echo "libraries installed to: $^"
+	@printf "\t%s\n" $(outputs)
 
-darwin-install: $($(os)-outputs)
-	@ln -sf lib$(ftd2xx_name).$($(os)-ftd2xx_vers).dylib $(install)/lib$(ftd2xx_name).dylib
+reinstall: $(outputs) install
 
-$($(os)-outputs): all
-	@test -d $(install) || mkdir -p $(install)
-	cp $@ $(install)
-
-$(target): $(os)-$(target)
-	$(AR) -rcs $(target).a $(objects)
-
-linux-$(target): $(objects)
-	$(CC) -o $(target).so $(objects) $(LDFLAGS)
-
-darwin-$(target): $(objects)
-	$(CC) -o $(target).dylib $(objects) $(LDFLAGS)
-
-$(objects): %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+build: $(outputs)
 
 clean:
-	$(RM) -f *.o *.a *.so *.dylib *.info
+	rm -rf $(objpath) $(os)-$(arch)/*.a $(os)-$(arch)/*.$($(os)-dynext) $(os)-$(arch)/*.info
+
+$(objpath):
+	@test -d $@ || mkdir -p $@
+
+$(os)-$(arch)/$(target).a: $(objpath) $(objects)
+	$(AR) -rcs $@ $(objects)
+	@printf "\t** build complete: %s (%s)\n\n" "$(target).a" "$(buildtime)" | tee "$@.info"
+	@$($(os)-objdump) $@ >> "$@.info"
+
+$(os)-$(arch)/$(target).$($(os)-dynext): $(objpath) $(objects)
+	$(CC) -o $@ $(objects) $(LDFLAGS)
+	@printf "\t** build complete: %s (%s)\n\n" "$(target).$($(os)-dynext)" "$(buildtime)" | tee "$@.info"
+	@$($(os)-objdump) $@ >> "$@.info"
+
+$(objects): $(objpath)/%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
