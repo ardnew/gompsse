@@ -85,26 +85,60 @@ func (s Status) Error() string {
 	}
 }
 
-type DeviceInfo struct {
-	IsOpen      bool
-	IsHiSpeed   bool
-	Type        uint32
-	ID          uint32
-	LocID       uint32
-	SerialNo    string
-	Description string
-	Handle      Handle
+type deviceInfo struct {
+	isOpen      bool
+	isHiSpeed   bool
+	chip        uint32
+	vid         uint32
+	pid         uint32
+	locID       uint32
+	serialNo    string
+	description string
+	handle      Handle
 }
 
-func NewDeviceInfo(info *C.FT_DEVICE_LIST_INFO_NODE) *DeviceInfo {
-	return &DeviceInfo{
-		IsOpen:      1 == (info.Flags & 0x01),
-		IsHiSpeed:   2 == (info.Flags & 0x02),
-		Type:        uint32(info.Type),
-		ID:          uint32(info.ID),
-		LocID:       uint32(info.LocId),
-		SerialNo:    C.GoString(&info.SerialNumber[0]),
-		Description: C.GoString(&info.Description[0]),
-		Handle:      Handle(info.ftHandle),
+func newDeviceInfo(info *C.FT_DEVICE_LIST_INFO_NODE) *deviceInfo {
+	return &deviceInfo{
+		isOpen:      1 == (info.Flags & 0x01),
+		isHiSpeed:   2 == (info.Flags & 0x02),
+		chip:        uint32(info.Type),
+		vid:         (uint32(info.ID) >> 16) & 0xFFFF,
+		pid:         (uint32(info.ID)) & 0xFFFF,
+		locID:       uint32(info.LocId),
+		serialNo:    C.GoString(&info.SerialNumber[0]),
+		description: C.GoString(&info.Description[0]),
+		handle:      Handle(info.ftHandle),
 	}
+}
+
+func devices() ([]*deviceInfo, error) {
+
+	var (
+		numDevices C.DWORD
+		stat       Status
+	)
+
+	if stat = Status(C.FT_CreateDeviceInfoList(&numDevices)); !stat.OK() {
+		return nil, stat
+	}
+
+	if 0 == numDevices {
+		return []*deviceInfo{}, nil
+	}
+
+	list := make([]C.FT_DEVICE_LIST_INFO_NODE, numDevices)
+	if stat = Status(C.FT_GetDeviceInfoList(&list[0], &numDevices)); !stat.OK() {
+		return nil, stat
+	}
+
+	info := make([]*deviceInfo, numDevices)
+	for i, n := range list {
+		info[i] = newDeviceInfo(&n)
+	}
+
+	// if stat = Status(C.FT_Open(0, (*C.PVOID)(&info[0].handle))); !stat.OK() {
+	// 	return nil, stat
+	// }
+
+	return info, nil
 }

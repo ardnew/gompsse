@@ -1,5 +1,9 @@
 package gompsse
 
+import (
+	"log"
+)
+
 type MPSSE struct {
 	I2C *I2C
 	SPI *SPI
@@ -46,6 +50,24 @@ const (
 	C7
 )
 
-func NewMPSSE() *MPSSE {
-	return &MPSSE{I2C: nil, SPI: nil}
+func NewMPSSE() (*MPSSE, error) {
+
+	var (
+		dev []*deviceInfo
+		err error
+	)
+
+	if dev, err = devices(); nil != err {
+		return nil, err
+	}
+
+	if 0 == len(dev) {
+		return nil, SDeviceNotFound
+	}
+
+	for i, o := range dev {
+		log.Printf("%d: %+v", i, o)
+	}
+
+	return &MPSSE{I2C: nil, SPI: nil}, nil
 }

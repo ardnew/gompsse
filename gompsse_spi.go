@@ -107,32 +107,32 @@ func dpinConfig(cfg [NumDPins]*spiDPinConfig) uint32 {
 }
 
 type SPI struct {
+	*deviceInfo
 	config *spiConfig
 }
 
-type SPIChannelInfo struct {
-	*DeviceInfo
+type spiInfo struct {
 }
 
-func SPIChannels() ([]*SPIChannelInfo, error) {
-	var numChannels C.uint32
-	if stat := Status(C.SPI_GetNumChannels(&numChannels)); !stat.OK() {
-		return nil, stat
-	}
+// func SPIChannels() ([]*spiInfo, error) {
+// 	var numChannels C.uint32
+// 	if stat := Status(C.SPI_GetNumChannels(&numChannels)); !stat.OK() {
+// 		return nil, stat
+// 	}
 
-	info := make([]C.FT_DEVICE_LIST_INFO_NODE, int(numChannels))
-	channel := make([]*SPIChannelInfo, int(numChannels))
+// 	info := make([]C.FT_DEVICE_LIST_INFO_NODE, int(numChannels))
+// 	channel := make([]*spiInfo, int(numChannels))
 
-	for i := C.uint32(0); i < numChannels; i++ {
-		if stat := Status(C.SPI_GetChannelInfo(i, &info[i])); !stat.OK() {
-			continue
-		}
-		channel[i] = &SPIChannelInfo{
-			DeviceInfo: NewDeviceInfo(&info[i]),
-		}
-	}
-	return channel, nil
-}
+// 	for i := C.uint32(0); i < numChannels; i++ {
+// 		if stat := Status(C.SPI_GetChannelInfo(i, &info[i])); !stat.OK() {
+// 			continue
+// 		}
+// 		channel[i] = &spiInfo{
+// 			DeviceInfo: NewDeviceInfo(&info[i]),
+// 		}
+// 	}
+// 	return channel, nil
+// }
 
 func NewSPI(cs DPin) (*SPI, error) {
 

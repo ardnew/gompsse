@@ -8,17 +8,8 @@ import (
 
 func main() {
 
-	var (
-		spi []*mpsse.SPIChannelInfo
-		err error
-	)
-	if spi, err = mpsse.SPIChannels(); nil != err {
-		log.Fatalf("SPIChannels(): %s", err)
+	if _, err := mpsse.NewMPSSE(); nil != err {
+		log.Printf("err: %+v", err)
 	}
 
-	for i, s := range spi {
-		log.Printf("%d: %+v", i, s.DeviceInfo)
-	}
-
-	log.Printf("exiting %d", len(spi))
 }
