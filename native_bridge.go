@@ -4,11 +4,15 @@ package gompsse
 // #cgo  CFLAGS: -I${SRCDIR}/native/inc
 // #cgo LDFLAGS: -lMPSSE -lftd2xx -ldl
 // #include "ftd2xx.h"
+// #include "libMPSSE_spi.h"
+// #include "libMPSSE_i2c.h"
 // #include "stdlib.h"
 import "C"
 
 type Handle C.FT_HANDLE
 type Status C.FT_STATUS
+type Chip C.FT_DEVICE
+type Mode C.int
 
 // Constants related to device status
 const (
@@ -85,60 +89,158 @@ func (s Status) Error() string {
 	}
 }
 
-type deviceInfo struct {
-	isOpen      bool
-	isHiSpeed   bool
-	chip        uint32
-	vid         uint32
-	pid         uint32
-	locID       uint32
-	serialNo    string
-	description string
-	handle      Handle
-}
+const (
+	FTBM      Chip = C.FT_DEVICE_BM
+	FTAM      Chip = C.FT_DEVICE_AM
+	FT100AX   Chip = C.FT_DEVICE_100AX
+	FTUnknown Chip = C.FT_DEVICE_UNKNOWN
+	FT2232C   Chip = C.FT_DEVICE_2232C
+	FT232R    Chip = C.FT_DEVICE_232R
+	FT2232H   Chip = C.FT_DEVICE_2232H
+	FT4232H   Chip = C.FT_DEVICE_4232H
+	FT232H    Chip = C.FT_DEVICE_232H
+	FTX       Chip = C.FT_DEVICE_X_SERIES
+	FT4222H0  Chip = C.FT_DEVICE_4222H_0
+	FT4222H12 Chip = C.FT_DEVICE_4222H_1_2
+	FT4222H3  Chip = C.FT_DEVICE_4222H_3
+	FT4222P   Chip = C.FT_DEVICE_4222_PROG
+	FT900     Chip = C.FT_DEVICE_900
+	FT930     Chip = C.FT_DEVICE_930
+	UMFTPD3A  Chip = C.FT_DEVICE_UMFTPD3A
+)
 
-func newDeviceInfo(info *C.FT_DEVICE_LIST_INFO_NODE) *deviceInfo {
-	return &deviceInfo{
-		isOpen:      1 == (info.Flags & 0x01),
-		isHiSpeed:   2 == (info.Flags & 0x02),
-		chip:        uint32(info.Type),
-		vid:         (uint32(info.ID) >> 16) & 0xFFFF,
-		pid:         (uint32(info.ID)) & 0xFFFF,
-		locID:       uint32(info.LocId),
-		serialNo:    C.GoString(&info.SerialNumber[0]),
-		description: C.GoString(&info.Description[0]),
-		handle:      Handle(info.ftHandle),
+func (c Chip) String() string {
+	switch c {
+	case FTBM:
+		return "FTBM"
+	case FTAM:
+		return "FTAM"
+	case FT100AX:
+		return "FT100AX"
+	case FTUnknown:
+		return "FTUnknown"
+	case FT2232C:
+		return "FT2232C"
+	case FT232R:
+		return "FT232R"
+	case FT2232H:
+		return "FT2232H"
+	case FT4232H:
+		return "FT4232H"
+	case FT232H:
+		return "FT232H"
+	case FTX:
+		return "FTX"
+	case FT4222H0:
+		return "FT4222H0"
+	case FT4222H12:
+		return "FT4222H12"
+	case FT4222H3:
+		return "FT4222H3"
+	case FT4222P:
+		return "FT4222P"
+	case FT900:
+		return "FT900"
+	case FT930:
+		return "FT930"
+	case UMFTPD3A:
+		return "UMFTPD3A"
+	default:
+		return "invalid chip"
 	}
 }
 
-func devices() ([]*deviceInfo, error) {
+const (
+	ModeNone Mode = 0
+	ModeSPI  Mode = 1
+	ModeI2C  Mode = 2
+)
 
-	var (
-		numDevices C.DWORD
-		stat       Status
-	)
+func (m Mode) String() string {
+	switch m {
+	case ModeNone:
+		return "None"
+	case ModeSPI:
+		return "SPI"
+	case ModeI2C:
+		return "I2C"
+	default:
+		return "Unknown"
+	}
+}
 
-	if stat = Status(C.FT_CreateDeviceInfoList(&numDevices)); !stat.OK() {
+func _FT_CreateDeviceInfoList() (uint, error) {
+	var n C.DWORD
+	stat := Status(C.FT_CreateDeviceInfoList(&n))
+	if !stat.OK() {
+		return 0, stat
+	}
+	return uint(n), nil
+}
+
+func _FT_GetDeviceInfoList(n uint) ([]*deviceInfo, error) {
+	ndev := C.DWORD(n)
+	list := make([]C.FT_DEVICE_LIST_INFO_NODE, n)
+	stat := Status(C.FT_GetDeviceInfoList(&list[0], &ndev))
+	if !stat.OK() {
 		return nil, stat
 	}
-
-	if 0 == numDevices {
-		return []*deviceInfo{}, nil
+	info := make([]*deviceInfo, n)
+	for i, node := range list {
+		// parse the C struct into our simpler Go definition
+		info[i] = &deviceInfo{
+			index:     i,
+			isOpen:    1 == (node.Flags & 0x01),
+			isHiSpeed: 2 == (node.Flags & 0x02),
+			chip:      Chip(node.Type),
+			vid:       (uint32(node.ID) >> 16) & 0xFFFF,
+			pid:       (uint32(node.ID)) & 0xFFFF,
+			locID:     uint32(node.LocId),
+			serial:    C.GoString(&node.SerialNumber[0]),
+			desc:      C.GoString(&node.Description[0]),
+			handle:    Handle(node.ftHandle),
+		}
 	}
-
-	list := make([]C.FT_DEVICE_LIST_INFO_NODE, numDevices)
-	if stat = Status(C.FT_GetDeviceInfoList(&list[0], &numDevices)); !stat.OK() {
-		return nil, stat
-	}
-
-	info := make([]*deviceInfo, numDevices)
-	for i, n := range list {
-		info[i] = newDeviceInfo(&n)
-	}
-
-	// if stat = Status(C.FT_Open(0, (*C.PVOID)(&info[0].handle))); !stat.OK() {
-	// 	return nil, stat
-	// }
-
 	return info, nil
+}
+
+func _FT_Open(info *deviceInfo) error {
+	stat := Status(C.FT_Open(C.int(info.index), (*C.PVOID)(&info.handle)))
+	if !stat.OK() {
+		return stat
+	}
+	return nil
+}
+
+func _FT_Close(info *deviceInfo) error {
+	stat := Status(C.FT_Close(C.PVOID(info.handle)))
+	if !stat.OK() {
+		return stat
+	}
+	return nil
+}
+
+func _SPI_InitChannel(spi *SPI) error {
+	// close any open channels before trying to init
+	if err := spi.device.Close(); nil != err {
+		return err
+	}
+	stat := Status(C.SPI_OpenChannel(C.uint32(spi.device.info.index),
+		(*C.PVOID)(&spi.device.info.handle)))
+	if !stat.OK() {
+		return stat
+	}
+	config := C.SPI_ChannelConfig{
+		ClockRate:     C.uint32(spi.config.clockRate),
+		LatencyTimer:  C.uint8(spi.config.latency),
+		configOptions: C.uint32(spi.config.options),
+		Pin:           C.uint32(spi.config.pin),
+		reserved:      C.uint16(spi.config.reserved),
+	}
+	stat = Status(C.SPI_InitChannel(C.PVOID(spi.device.info.handle), &config))
+	if !stat.OK() {
+		return stat
+	}
+	spi.device.mode = ModeSPI
+	return nil
 }

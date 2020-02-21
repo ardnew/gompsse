@@ -145,7 +145,7 @@ status=FT_INVALID_PARAMETER ; return(status);}else{;}};
 
 #ifndef __BORLANDC__
 	#define FN_ENTER	DBG(MSG_DEBUG,"Entering function\n");
-	#define FN_EXIT		DBG(MSG_DEBUG,"Exiting function status=%u\n",(unsigned)status);
+	#define FN_EXIT		DBG(MSG_DEBUG,"Exiting function\n");
 	#define FN_PT		DBG(MSG_DEBUG,"Path taken\n");
 #else
 	#define FN_ENTER	;

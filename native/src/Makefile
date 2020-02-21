@@ -10,8 +10,8 @@
 # host OS and arch where you will be running your Go executables. the actual
 # values used here are inherited from $GOOS and $GOARCH, and are what I used for
 # directory names for any software that is system-specific (incl. proprietary)
-os       = linux
-#os       = darwin
+#os       = linux
+os       = darwin
 arch     = amd64
 #arch     = 386
 #arch     = arm64
@@ -79,8 +79,8 @@ outputs  = $(os)-$(arch)/$(target).a \
            $(ftd2xx-root)/lib$(ftd2xx-name).$($(os)-ftd2xx-dynext) \
            $(ftd2xx-root)/lib$(ftd2xx-name).$($(os)-dynext)
 
-#defines = -DINFRA_debug_ENABLE
 defines  =
+#defines  += -DINFRA_DEBUG_ENABLE
 optimize = -Og
 debug    = -g
 warnings = -Wall

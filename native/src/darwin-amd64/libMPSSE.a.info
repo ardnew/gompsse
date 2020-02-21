@@ -1,11 +1,11 @@
-	** build complete: libMPSSE.a (Thu Feb 20 16:50:28 CST 2020)
+	** build complete: libMPSSE.a (Fri Feb 21 16:42:03 CST 2020)
 
 Archive : darwin-amd64/libMPSSE.a
--rw-r--r--501/20   1796 Thu Feb 20 16:50:33 2020 __.SYMDEF SORTED
--rw-r--r--501/20  11228 Thu Feb 20 16:50:28 2020 ftdi_infra.o
--rw-r--r--501/20  27212 Thu Feb 20 16:50:28 2020 ftdi_mid.o
--rw-r--r--501/20  27148 Thu Feb 20 16:50:28 2020 ftdi_i2c.o
--rw-r--r--501/20  29852 Thu Feb 20 16:50:28 2020 ftdi_spi.o
+-rw-r--r--501/20   1796 Fri Feb 21 16:42:09 2020 __.SYMDEF SORTED
+-rw-r--r--501/20  11228 Fri Feb 21 16:42:04 2020 ftdi_infra.o
+-rw-r--r--501/20  27212 Fri Feb 21 16:42:04 2020 ftdi_mid.o
+-rw-r--r--501/20  27148 Fri Feb 21 16:42:04 2020 ftdi_i2c.o
+-rw-r--r--501/20  29852 Fri Feb 21 16:42:04 2020 ftdi_spi.o
 darwin-amd64/libMPSSE.a(ftdi_infra.o):
 SYMBOL TABLE:
 0000000000000250 l     F __TEXT,__StaticInit	___GLOBAL_init_65535

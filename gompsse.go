@@ -1,12 +1,135 @@
 package gompsse
 
 import (
-	"log"
+	"fmt"
+	"strings"
 )
 
 type MPSSE struct {
-	I2C *I2C
-	SPI *SPI
+	info *deviceInfo
+	mode Mode
+	I2C  *I2C
+	SPI  *SPI
+}
+
+func (m *MPSSE) String() string {
+	return fmt.Sprintf("{ Info: %s, Mode: %s, I2C: %+v, SPI: %+v }",
+		m.info, m.mode, m.I2C, m.SPI)
+}
+
+func NewMPSSE() (*MPSSE, error) {
+	return NewMPSSEWithMask(nil) // first device found
+}
+
+func NewMPSSEWithIndex(index uint) (*MPSSE, error) {
+	s := fmt.Sprintf("%d", index)
+	return NewMPSSEWithMask(&OpenMask{Index: s})
+}
+
+func NewMPSSEWithVIDPID(vid uint16, pid uint16) (*MPSSE, error) {
+	v := fmt.Sprintf("%04x", vid)
+	p := fmt.Sprintf("%04x", pid)
+	return NewMPSSEWithMask(&OpenMask{VID: v, PID: p})
+}
+
+func NewMPSSEWithSerial(serial string) (*MPSSE, error) {
+	return NewMPSSEWithMask(&OpenMask{Serial: serial})
+}
+
+func NewMPSSEWithDesc(desc string) (*MPSSE, error) {
+	return NewMPSSEWithMask(&OpenMask{Desc: desc})
+}
+
+func NewMPSSEWithMask(mask *OpenMask) (*MPSSE, error) {
+	m := &MPSSE{info: nil, mode: ModeNone, I2C: nil, SPI: nil}
+	if err := m.openDevice(mask); nil != err {
+		return nil, err
+	}
+	m.SPI = &SPI{device: m, config: spiConfigDefault()}
+	return m, nil
+}
+
+type OpenMask struct {
+	Index  string
+	VID    string
+	PID    string
+	Serial string
+	Desc   string
+}
+
+func (m *MPSSE) openDevice(mask *OpenMask) error {
+
+	var (
+		dev []*deviceInfo
+		sel *deviceInfo
+		err error
+	)
+
+	if dev, err = devices(); nil != err {
+		return err
+	}
+
+	for _, d := range dev {
+		if nil == mask {
+			sel = d
+			break
+		}
+		if "" != mask.Index {
+			if mask.Index != fmt.Sprintf("%d", d.index) {
+				continue
+			}
+		}
+		if "" != mask.VID {
+			ms := strings.ToLower(mask.VID)
+			dx := fmt.Sprintf("%x", d.vid)
+			dz := fmt.Sprintf("%04x", d.vid)
+			if (ms != dx) && (ms != ("0x" + dx)) &&
+				(ms != dz) && (ms != ("0x" + dz)) &&
+				(ms != fmt.Sprintf("%d", d.vid)) {
+				continue
+			}
+		}
+		if "" != mask.PID {
+			ms := strings.ToLower(mask.PID)
+			dx := fmt.Sprintf("%x", d.pid)
+			dz := fmt.Sprintf("%04x", d.pid)
+			if (ms != dx) && (ms != ("0x" + dx)) &&
+				(ms != dz) && (ms != ("0x" + dz)) &&
+				(ms != fmt.Sprintf("%d", d.pid)) {
+				continue
+			}
+		}
+		if "" != mask.Serial {
+			if strings.ToLower(mask.Serial) != strings.ToLower(d.serial) {
+				continue
+			}
+		}
+		if "" != mask.Desc {
+			if strings.ToLower(mask.Desc) != strings.ToLower(d.desc) {
+				continue
+			}
+		}
+		sel = d
+		break
+	}
+
+	if nil == sel {
+		return SDeviceNotFound
+	}
+
+	if err = sel.open(); nil != err {
+		return err
+	}
+	m.info = sel
+	return nil
+}
+
+func (m *MPSSE) Close() error {
+	if nil != m.info {
+		return m.info.close()
+	}
+	m.mode = ModeNone
+	return nil
 }
 
 // Types representing individual port pins.
@@ -50,24 +173,64 @@ const (
 	C7
 )
 
-func NewMPSSE() (*MPSSE, error) {
+type deviceInfo struct {
+	index     int
+	isOpen    bool
+	isHiSpeed bool
+	chip      Chip
+	vid       uint32
+	pid       uint32
+	locID     uint32
+	serial    string
+	desc      string
+	handle    Handle
+}
 
-	var (
-		dev []*deviceInfo
-		err error
-	)
+func (dev *deviceInfo) String() string {
+	return fmt.Sprintf("%d:{ Open = %t, HiSpeed = %t, Chip = \"%s\" (0x%02X), "+
+		"VID = 0x%04X, PID = 0x%04X, Location = %04X, "+
+		"Serial = \"%s\", Desc = \"%s\", Handle = %p }",
+		dev.index, dev.isOpen, dev.isHiSpeed, dev.chip, uint32(dev.chip),
+		dev.vid, dev.pid, dev.locID, dev.serial, dev.desc, dev.handle)
+}
 
-	if dev, err = devices(); nil != err {
-		return nil, err
+func (dev *deviceInfo) open() error {
+	if ce := dev.close(); nil != ce {
+		return ce
+	}
+	if oe := _FT_Open(dev); nil != oe {
+		return oe
+	}
+	dev.isOpen = true
+	return nil
+}
+
+func (dev *deviceInfo) close() error {
+	if !dev.isOpen {
+		return nil
+	}
+	if ce := _FT_Close(dev); nil != ce {
+		return ce
+	}
+	dev.isOpen = false
+	return nil
+}
+
+func devices() ([]*deviceInfo, error) {
+
+	n, ce := _FT_CreateDeviceInfoList()
+	if nil != ce {
+		return nil, ce
 	}
 
-	if 0 == len(dev) {
-		return nil, SDeviceNotFound
+	if 0 == n {
+		return []*deviceInfo{}, nil
 	}
 
-	for i, o := range dev {
-		log.Printf("%d: %+v", i, o)
+	info, de := _FT_GetDeviceInfoList(n)
+	if nil != de {
+		return nil, de
 	}
 
-	return &MPSSE{I2C: nil, SPI: nil}, nil
+	return info, nil
 }

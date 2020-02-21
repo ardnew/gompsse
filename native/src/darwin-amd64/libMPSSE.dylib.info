@@ -1,4 +1,4 @@
-	** build complete: libMPSSE.dylib (Thu Feb 20 16:50:28 CST 2020)
+	** build complete: libMPSSE.dylib (Fri Feb 21 16:42:03 CST 2020)
 
 darwin-amd64/libMPSSE.dylib:
 Indirect symbols for (__TEXT,__stubs) 13 entries
@@ -43,7 +43,7 @@ SYMBOL TABLE:
 0000000000005068 l     O __DATA,__data	__dyld_private
 0000000000000000 l    d  *UND*	/Users/andrew/Development/go/src/github.com/ardnew/gompsse/native/src/
 0000000000000000 l    d  *UND*	ftdi_infra.c
-000000005e4f0d34 l    d  __TEXT,__stub_helper	__stub_helper
+000000005e505cbc l    d  __TEXT,__stub_helper	__stub_helper
 0000000000000860 l    d  __TEXT,__text	__text
 0000000000000860 l    d  __TEXT,__text	__text
 0000000000000010 l    d  *UND*	
@@ -81,7 +81,7 @@ SYMBOL TABLE:
 0000000000000000 l    d  __TEXT,__text	__text
 0000000000000000 l    d  *UND*	/Users/andrew/Development/go/src/github.com/ardnew/gompsse/native/src/
 0000000000000000 l    d  *UND*	ftdi_mid.c
-000000005e4f0d34 l    d  __TEXT,__stub_helper	__stub_helper
+000000005e505cbc l    d  __TEXT,__stub_helper	__stub_helper
 0000000000000ad0 l    d  __TEXT,__text	__text
 0000000000000ad0 l    d  __TEXT,__text	__text
 00000000000000d0 l    d  *UND*	
@@ -189,7 +189,7 @@ SYMBOL TABLE:
 0000000000000000 l    d  __TEXT,__text	__text
 0000000000000000 l    d  *UND*	/Users/andrew/Development/go/src/github.com/ardnew/gompsse/native/src/
 0000000000000000 l    d  *UND*	ftdi_i2c.c
-000000005e4f0d34 l    d  __TEXT,__stub_helper	__stub_helper
+000000005e505cbc l    d  __TEXT,__stub_helper	__stub_helper
 00000000000018e0 l    d  __TEXT,__text	__text
 00000000000018e0 l    d  __TEXT,__text	__text
 0000000000000060 l    d  *UND*	
@@ -257,7 +257,7 @@ SYMBOL TABLE:
 0000000000000000 l    d  __TEXT,__text	__text
 0000000000000000 l    d  *UND*	/Users/andrew/Development/go/src/github.com/ardnew/gompsse/native/src/
 0000000000000000 l    d  *UND*	ftdi_spi.c
-000000005e4f0d34 l    d  __TEXT,__stub_helper	__stub_helper
+000000005e505cbc l    d  __TEXT,__stub_helper	__stub_helper
 00000000000029e0 l    d  __TEXT,__text	__text
 00000000000029e0 l    d  __TEXT,__text	__text
 0000000000000060 l    d  *UND*	
