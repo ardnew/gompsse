@@ -220,16 +220,36 @@ func _FT_Close(info *deviceInfo) error {
 	return nil
 }
 
+func _FT_WriteGPIO(gpio *GPIO, dir uint8, val uint8) error {
+	stat := Status(C.FT_WriteGPIO(C.PVOID(gpio.device.info.handle), C.uint8(dir), C.uint8(val)))
+	if !stat.OK() {
+		return stat
+	}
+	return nil
+}
+
+func _FT_ReadGPIO(gpio *GPIO) (uint8, error) {
+	var val C.uint8
+	stat := Status(C.FT_ReadGPIO(C.PVOID(gpio.device.info.handle), &val))
+	if !stat.OK() {
+		return 0, stat
+	}
+	return uint8(val), nil
+}
+
 func _SPI_InitChannel(spi *SPI) error {
+
 	// close any open channels before trying to init
 	if err := spi.device.Close(); nil != err {
 		return err
 	}
+
 	stat := Status(C.SPI_OpenChannel(C.uint32(spi.device.info.index),
 		(*C.PVOID)(&spi.device.info.handle)))
 	if !stat.OK() {
 		return stat
 	}
+
 	config := C.SPI_ChannelConfig{
 		ClockRate:     C.uint32(spi.config.clockRate),
 		LatencyTimer:  C.uint8(spi.config.latency),
@@ -237,10 +257,11 @@ func _SPI_InitChannel(spi *SPI) error {
 		Pin:           C.uint32(spi.config.pin),
 		reserved:      C.uint16(spi.config.reserved),
 	}
+
 	stat = Status(C.SPI_InitChannel(C.PVOID(spi.device.info.handle), &config))
 	if !stat.OK() {
 		return stat
 	}
-	spi.device.mode = ModeSPI
+
 	return nil
 }

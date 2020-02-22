@@ -1,5 +1,7 @@
 package gompsse
 
+import "fmt"
+
 // Constants controlling the supported SPI transfer options
 const (
 	spiXferBytes = 0x00000000 // size is provided in bytes
@@ -10,41 +12,46 @@ const (
 
 // Constants related to board pins when MPSSE operating in SPI mode
 const (
-	spiClockRateDefault = 12000000 // valid range: 0-30000000 (30 MHz)
-	spiLatencyDefault   = 16       // 1-255 USB Hi-Speed, 2-255 USB Full-Speed
+	spiClockMaximum   = 30000000
+	spiClockDefault   = 12000000 // valid range: 0-30000000 (30 MHz)
+	spiLatencyDefault = 16       // 1-255 USB Hi-Speed, 2-255 USB Full-Speed
+)
+
+type (
+	spiOption uint32
 )
 
 // Constants defining the available options in the SPI configuration struct.
 const (
 	// Known SPI operating modes
 	//   LIMITATION: libMPSSE only supports mode 0 and mode 2 (CPHA==2).
-	SPIMode0       = 0x00000000 // capture on RISE, propagate on FALL
-	SPIMode1       = 0x00000001 // capture on FALL, propagate on RISE
-	SPIMode2       = 0x00000002 // capture on FALL, propagate on RISE
-	SPIMode3       = 0x00000003 // capture on RISE, propagate on FALL
-	spiModeMask    = 0x00000003
-	spiModeInvalid = 0x000000FF
-	spiModeDefault = SPIMode0
+	SPIMode0       spiOption = 0x00000000 // capture on RISE, propagate on FALL
+	SPIMode1       spiOption = 0x00000001 // capture on FALL, propagate on RISE
+	SPIMode2       spiOption = 0x00000002 // capture on FALL, propagate on RISE
+	SPIMode3       spiOption = 0x00000003 // capture on RISE, propagate on FALL
+	spiModeMask    spiOption = 0x00000003
+	spiModeInvalid spiOption = 0x000000FF
+	spiModeDefault spiOption = SPIMode0
 
 	// DPins available for chip-select operation
-	spiCSD3      = 0x00000000 // SPI CS on D3
-	spiCSD4      = 0x00000004 // SPI CS on D4
-	spiCSD5      = 0x00000008 // SPI CS on D5
-	spiCSD6      = 0x0000000C // SPI CS on D6
-	spiCSD7      = 0x00000010 // SPI CS on D7
-	spiCSMask    = 0x0000001C
-	spiCSInvalid = 0x000000FF
-	spiCSDefault = spiCSD3
+	spiCSD3      spiOption = 0x00000000 // SPI CS on D3
+	spiCSD4      spiOption = 0x00000004 // SPI CS on D4
+	spiCSD5      spiOption = 0x00000008 // SPI CS on D5
+	spiCSD6      spiOption = 0x0000000C // SPI CS on D6
+	spiCSD7      spiOption = 0x00000010 // SPI CS on D7
+	spiCSMask    spiOption = 0x0000001C
+	spiCSInvalid spiOption = 0x000000FF
+	spiCSDefault spiOption = spiCSD3
 
 	// Other options
-	spiCSActiveLow     = 0x00000020 // drive pin low to assert CS
-	spiCSActiveHigh    = 0x00000000 // drive pin high to assert CS
-	spiCSActiveDefault = spiCSActiveLow
+	spiCSActiveLow     spiOption = 0x00000020 // drive pin low to assert CS
+	spiCSActiveHigh    spiOption = 0x00000000 // drive pin high to assert CS
+	spiCSActiveDefault spiOption = spiCSActiveLow
 )
 
 // spiCSPin translates a DPin value to its corresponding chip-select mask for
 // the SPI configuration struct option.
-var spiCSPin = map[DPin]uint32{
+var spiCSPin = map[DPin]spiOption{
 	D0: spiCSInvalid,
 	D1: spiCSInvalid,
 	D2: spiCSInvalid,
@@ -99,14 +106,14 @@ func spiDPin(cfg [NumDPins]*spiDPinConfig) uint32 {
 type spiConfig struct {
 	clockRate uint32 // in Hertz
 	latency   uint8  // in ms
-	options   uint32
+	options   spiOption
 	pin       uint32 // port D pins ("low byte lines of MPSSE")
 	reserved  uint16
 }
 
 func spiConfigDefault() *spiConfig {
 	return &spiConfig{
-		clockRate: spiClockRateDefault,
+		clockRate: spiClockDefault,
 		latency:   spiLatencyDefault,
 		options:   spiCSActiveDefault | spiCSDefault | spiModeDefault,
 		pin:       spiDPinConfigDefault(),
@@ -119,6 +126,71 @@ type SPI struct {
 	config *spiConfig
 }
 
+func (spi *SPI) ChangeCS(cs DPin) error {
+
+	var csOpt spiOption
+
+	if csOpt, ok := spiCSPin[cs]; !ok || (spiCSInvalid == csOpt) {
+		return fmt.Errorf("invalid CS pin: %d", cs)
+	}
+
+	spi.config.options &= ^(spiCSMask)
+	spi.config.options |= csOpt
+
+	return nil
+}
+
+func (spi *SPI) SetOptions(cs DPin, activeLow bool, mode byte) error {
+
+	var (
+		activeOpt spiOption
+		modeOpt   spiOption
+	)
+
+	if activeLow {
+		activeOpt = spiCSActiveLow
+	} else {
+		activeOpt = spiCSActiveHigh
+	}
+
+	if spiOption(mode) > spiModeMask {
+		return fmt.Errorf("invalid SPI mode: Mode %d", mode)
+	} else {
+		modeOpt = spiOption(mode)
+	}
+
+	spi.config.options = activeOpt | modeOpt
+	return spi.ChangeCS(cs)
+}
+
+func (spi *SPI) SetConfig(clock uint32, latency byte, cs DPin, activeLow bool, mode byte) error {
+
+	if 0 == clock {
+		spi.config.clockRate = spiClockDefault
+	} else {
+		if clock <= spiClockMaximum {
+			spi.config.clockRate = clock
+		} else {
+			return fmt.Errorf("invalid clock rate: %d", clock)
+		}
+	}
+
+	if 0 == latency {
+		spi.config.latency = spiLatencyDefault
+	} else {
+		spi.config.latency = latency
+	}
+
+	return spi.SetOptions(cs, activeLow, mode)
+}
+
 func (spi *SPI) Init() error {
-	return _SPI_InitChannel(spi)
+
+	if err := _SPI_InitChannel(spi); nil != err {
+		return err
+	}
+
+	spi.device.mode = ModeSPI
+
+	return spi.device.GPIO.Init() // reset GPIO
 }

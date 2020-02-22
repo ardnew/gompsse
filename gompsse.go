@@ -10,11 +10,12 @@ type MPSSE struct {
 	mode Mode
 	I2C  *I2C
 	SPI  *SPI
+	GPIO *GPIO
 }
 
 func (m *MPSSE) String() string {
-	return fmt.Sprintf("{ Info: %s, Mode: %s, I2C: %+v, SPI: %+v }",
-		m.info, m.mode, m.I2C, m.SPI)
+	return fmt.Sprintf("{ Info: %s, Mode: %s, I2C: %+v, SPI: %+v, GPIO: %+v }",
+		m.info, m.mode, m.I2C, m.SPI, m.GPIO)
 }
 
 func NewMPSSE() (*MPSSE, error) {
@@ -45,7 +46,12 @@ func NewMPSSEWithMask(mask *OpenMask) (*MPSSE, error) {
 	if err := m.openDevice(mask); nil != err {
 		return nil, err
 	}
+	m.I2C = &I2C{device: m, config: i2cConfigDefault()}
 	m.SPI = &SPI{device: m, config: spiConfigDefault()}
+	m.GPIO = &GPIO{device: m, config: gpioConfigDefault()}
+	if err := m.GPIO.Init(); nil != err {
+		return nil, err
+	}
 	return m, nil
 }
 
@@ -233,4 +239,75 @@ func devices() ([]*deviceInfo, error) {
 	}
 
 	return info, nil
+}
+
+type gpioConfig struct {
+	dir uint8
+	val uint8
+}
+
+func gpioConfigDefault() *gpioConfig {
+	return &gpioConfig{
+		dir: 0xFF, // each bit set, all pins OUTPUT by default
+		val: 0x00, // each bit clear, all pins LOW by default
+	}
+}
+
+type GPIO struct {
+	device *MPSSE
+	config *gpioConfig
+}
+
+func (gpio *GPIO) Init() error {
+	return gpio.Write(gpio.config.dir, gpio.config.val)
+}
+
+func (gpio *GPIO) Write(dir uint8, val uint8) error {
+
+	val &= dir // only set output bits
+
+	if err := _FT_WriteGPIO(gpio, dir, val); nil != err {
+		return err
+	}
+
+	gpio.config.dir = dir
+	gpio.config.val = val
+
+	return nil
+}
+
+func (gpio *GPIO) Read() (uint8, error) {
+
+	val, err := _FT_ReadGPIO(gpio)
+	if nil != err {
+		return 0, err
+	}
+
+	gpio.config.val = val
+
+	return val, nil
+}
+
+func (gpio *GPIO) Set(pin CPin, val bool) error {
+
+	dir := gpio.config.dir | uint8(pin)
+	set := gpio.config.val
+
+	if val {
+		set |= uint8(pin)
+	} else {
+		set &= ^uint8(pin)
+	}
+
+	return gpio.Write(dir, set)
+}
+
+func (gpio *GPIO) Get(pin CPin) (bool, error) {
+
+	set, err := gpio.Read()
+	if nil != err {
+		return false, err
+	}
+
+	return (set & uint8(pin)) > 0, nil
 }

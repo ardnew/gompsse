@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	for _, desc := range []string{"FT232H", "FT232H-C"} {
+	for _, desc := range []string{"FT232H-C"} {
 		m, err := mpsse.NewMPSSEWithDesc(desc)
 		if nil != err {
 			log.Printf("NewMPSSEWithDesc(): %+v", err)
