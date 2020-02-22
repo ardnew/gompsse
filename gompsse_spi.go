@@ -2,12 +2,15 @@ package gompsse
 
 import "fmt"
 
+type spiXferOption uint32
+
 // Constants controlling the supported SPI transfer options
 const (
-	spiXferBytes = 0x00000000 // size is provided in bytes
-	spiXferBits  = 0x00000001 // size is provided in bits
-	spiCSEnable  = 0x00000002 // assert CS before start
-	spiCSDisable = 0x00000004 // deassert CS after end
+	spiXferBytes spiXferOption = 0x00000000 // size is provided in bytes
+	spiXferBits  spiXferOption = 0x00000001 // size is provided in bits
+
+	spiCSAssert   spiXferOption = 0x00000002 // assert CS before start
+	spiCSDeAssert spiXferOption = 0x00000004 // deassert CS after end
 )
 
 // Constants related to board pins when MPSSE operating in SPI mode
@@ -17,9 +20,7 @@ const (
 	spiLatencyDefault = 16       // 1-255 USB Hi-Speed, 2-255 USB Full-Speed
 )
 
-type (
-	spiOption uint32
-)
+type spiOption uint32
 
 // Constants defining the available options in the SPI configuration struct.
 const (
@@ -193,4 +194,31 @@ func (spi *SPI) Init() error {
 	spi.device.mode = ModeSPI
 
 	return spi.device.GPIO.Init() // reset GPIO
+}
+
+func (spi *SPI) Write(data []uint8, start bool, stop bool) (uint32, error) {
+	opt := spiXferBytes
+	if start {
+		opt |= spiCSAssert
+	}
+	if stop {
+		opt |= spiCSDeAssert
+	}
+	return _SPI_Write(spi, data, opt)
+}
+
+func (spi *SPI) WriteWith(cs CPin, data []uint8, start bool, stop bool) (uint32, error) {
+
+	assert := 0 == uint32(spiCSActiveLow&spi.config.options)
+
+	if start {
+		if err := spi.device.GPIO.Set(cs, assert); nil != err {
+			return 0, err
+		}
+	}
+	if stop {
+		defer func() { _ = spi.device.GPIO.Set(cs, !assert) }()
+	}
+
+	return _SPI_Write(spi, data, spiXferBytes)
 }

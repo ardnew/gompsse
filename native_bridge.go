@@ -265,3 +265,21 @@ func _SPI_InitChannel(spi *SPI) error {
 
 	return nil
 }
+
+func _SPI_ChangeCS(spi *SPI, opt spiOption) error {
+	stat := Status(C.SPI_ChangeCS(C.PVOID(spi.device.info.handle), C.uint32(opt)))
+	if !stat.OK() {
+		return stat
+	}
+	return nil
+}
+
+func _SPI_Write(spi *SPI, data []uint8, opt spiXferOption) (uint32, error) {
+	var sent C.uint32
+	stat := Status(C.SPI_Write(C.PVOID(spi.device.info.handle),
+		(*C.uint8)(&data[0]), C.uint32(len(data)), &sent, C.uint32(opt)))
+	if !stat.OK() {
+		return uint32(sent), stat
+	}
+	return uint32(sent), nil
+}
